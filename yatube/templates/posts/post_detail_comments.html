@@ -1,6 +1,5 @@
 {% extends 'posts/post_detail.html' %}
 {% load user_filters %}
-
 {% block comment %}
 {% if user.is_authenticated %}
   <div class="card my-4">
@@ -16,7 +15,6 @@
     </div>
   </div>
 {% endif %}
-
 {% for comment in comments %}
   <div class="media mb-4">
     <div class="media-body">

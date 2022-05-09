@@ -22,10 +22,10 @@ class TestPostsUrls(TestCase):
         '''
         super().setUpClass()
 
-        cls.user = User.objects.create_user(username='Kirill')
-        cls.other_user = User.objects.create_user(username='Other')
+        cls.user = User.objects.create(username='Kirill')
+        cls.other_user = User.objects.create(username='Other')
 
-        cls.client = Client()
+        cls.non_auth_client = Client()
 
         cls.auth_client = Client()
         cls.auth_client.force_login(cls.user)
@@ -45,6 +45,10 @@ class TestPostsUrls(TestCase):
             author=cls.other_user
         )
 
+    @classmethod
+    def tearDownClass(cls) -> None:
+        super().tearDownClass()
+
     def test_page_status_unauthorized(self):
         '''
         Тестирование URL, доступных неавторизованному клиенту.
@@ -63,7 +67,7 @@ class TestPostsUrls(TestCase):
         }
         for url, adress in testing_urls.items():
             with self.subTest(field=url):
-                response = self.client.get(adress)
+                response = self.non_auth_client.get(adress)
                 self.assertEqual(response.status_code,
                                  HTTPStatus.OK,
                                  f'Ошибка при переходе на страницу "{url}". '
@@ -89,7 +93,7 @@ class TestPostsUrls(TestCase):
         }
         for url, template in templates.items():
             with self.subTest(field=url):
-                response = self.client.get(url)
+                response = self.non_auth_client.get(url)
                 self.assertTemplateUsed(response,
                                         template,
                                         'Некорректный шаблон'
@@ -103,9 +107,12 @@ class TestPostsUrls(TestCase):
         '''
         auth_response = self.auth_client.get(reverse('posts:post_create'))
 
-        non_auth_response = self.client.get(reverse('posts:post_create'),
-                                            follow=True
-                                            )
+        non_auth_response = (self
+                             .non_auth_client
+                             .get(reverse('posts:post_create'),
+                                  follow=True
+                                  )
+                             )
 
         self.assertEqual(auth_response.status_code,
                          HTTPStatus.OK,

@@ -12,6 +12,8 @@ from django.urls import reverse
 from yatube.settings import POSTS_AMOUNT
 from ..models import Group, Post
 
+TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
+
 User = get_user_model()
 
 TEST_IMAGE = (b'\x47\x49\x46\x38\x39\x61\x02\x00'
@@ -22,8 +24,6 @@ TEST_IMAGE = (b'\x47\x49\x46\x38\x39\x61\x02\x00'
               b'\x0A\x00\x3B'
               )
 
-TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
-
 
 @override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
 class TestPostViews(TestCase):
@@ -32,7 +32,7 @@ class TestPostViews(TestCase):
     def setUpClass(cls) -> None:
         super().setUpClass()
 
-        cls.user = User.objects.create_user(username='Kirill')
+        cls.user = User.objects.create(username='Kirill')
 
         cls.group = Group.objects.create(
             title='Test title',
@@ -61,7 +61,7 @@ class TestPostViews(TestCase):
         Post.objects.bulk_create(cls.posts)
 
     @classmethod
-    def tearDownClass(cls):
+    def tearDownClass(cls) -> None:
         super().tearDownClass()
         shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
 
@@ -71,8 +71,7 @@ class TestPostViews(TestCase):
         self.client = Client()
         self.client.force_login(self.user)
 
-        self.post = (self.client
-                     .get(reverse('posts:index')).context['posts'].first())
+        self.post = Post.objects.all().first()
 
     def test_views_templates(self):
         '''Проверка использования корректного шаблона'''
@@ -87,7 +86,7 @@ class TestPostViews(TestCase):
                            'posts/group_list.html'
                            },
             'profile': {(reverse('posts:profile',
-                        kwargs={'username': self.user.username})):
+                        args=(self.user.username,))):
                         'posts/profile.html'
                         },
             'post_detail': {(reverse('posts:post_detail',
@@ -254,8 +253,15 @@ class TestCache(TestCase):
         Post.objects.create(text='Test post',
                             author=cls.user)
 
-        cls.client = Client()
-        cls.client.force_login(cls.user)
+    @classmethod
+    def tearDownClass(cls) -> None:
+        super().tearDownClass()
+        shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.client = Client()
+        self.client.force_login(self.user)
 
     def test_cache_working(self):
 
@@ -299,6 +305,11 @@ class TestFollowing(TestCase):
 
         cls.post = Post.objects.create(text='Test text',
                                        author=cls.author)
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        super().tearDownClass()
+        shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
 
     def setUp(self) -> None:
         super().setUp()

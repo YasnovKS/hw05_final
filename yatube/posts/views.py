@@ -55,7 +55,7 @@ def group_posts(request, slug):
 
 def profile(request, username):
     author = get_object_or_404(User, username=username)
-    posts = author.posts.select_related('group', 'author').all()
+    posts = author.posts.all()
     posts_count = posts.count()
     page_obj = create_pages(request, posts)
     following = False
@@ -142,7 +142,7 @@ def add_comment(request, post_id):
 @login_required
 def follow_index(request):
     user = get_object_or_404(User, username=request.user.username)
-    authors = Follow.objects.filter(user=user)
+    authors = user.follower.all()
     posts = []
     for author in authors:
         authors_posts = author.author.posts.all()
