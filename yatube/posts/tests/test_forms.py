@@ -172,12 +172,23 @@ class TestForm(TestCase):
 
         #  Сначала проверяем отсутствие комментов в БД после отправки
         #  пост-запроса от неавторизованного юзера:
-        self.unauthorized_client.post(reverse('posts:add_comment',
-                                              args=(post.id,)),
-                                      form,
-                                      follow=True
-                                      )
+
+        response = self.unauthorized_client.post(reverse('posts:add_comment',
+                                                         args=(post.id,)),
+                                                 form,
+                                                 follow=True
+                                                 )
         self.assertFalse(Comment.objects.all())
+
+        #  Проеряем редирект неавторизованного юзера при попытке
+        #  создать комментарий:
+        target_url = (f'{reverse("users:login")}?next='
+                      f'{reverse("posts:add_comment", args=(post.id,))}'
+                      )
+        self.assertRedirects(response,
+                             target_url,
+                             status_code=HTTPStatus.FOUND,
+                             target_status_code=HTTPStatus.OK)
 
         #  Затем проверяем наличие поста в БД после отправки
         #  пост-запроса от авторизованного юзера:

@@ -10,7 +10,7 @@ from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
 from yatube.settings import POSTS_AMOUNT
-from ..models import Group, Post
+from ..models import Group, Post, Follow
 
 TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
 
@@ -311,6 +311,10 @@ class TestFollowing(TestCase):
         super().tearDownClass()
         shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
 
+    def tearDown(self) -> None:
+        super().tearDown()
+        Follow.objects.all().delete()
+
     def setUp(self) -> None:
         super().setUp()
         self.auth_client = Client()
@@ -320,44 +324,59 @@ class TestFollowing(TestCase):
         self.auth_random_client.force_login(self.random_user)
 
     def test_auth_user_follow(self):
-        #  Подписываемся на автора и проверяем наличие поста
-        #  автора на странице /follow/
+        '''Подписываемся на автора и проверяем наличие поста
+        автора на странице /follow/'''
         self.auth_client.get(reverse('posts:profile_follow',
                                      args=(self.author.username,)
                                      )
                              )
-        response = self.auth_client.get(reverse('posts:follow_index'))
-        context = response.context['posts'][0]
-        self.assertEqual(context.text,
-                         self.post.text,
-                         ('Пост автора, на которого подписан юзер, '
-                          'не передается в контекст на странице '
-                          '/follow/.'
-                          )
-                         )
-        #  Проверяем, что при создании автором нового поста, он появляется
-        #  на странице /follow/ у подписанных пользователей и не появляется
-        #  у неподписанных
-        posts_count = len(response.context['posts'])
-        Post.objects.create(text='New post',
-                            author=self.author)
-        author_posts_count = {
-            self.auth_client: posts_count + 1,
-            self.auth_random_client: 0
-        }
-        for client, expected in author_posts_count.items():
-            with self.subTest(name=client):
-                response = client.get(reverse('posts:follow_index'))
-                context = response.context['posts']
-                self.assertEqual(len(context), expected)
+        self.assertTrue(Follow.objects.filter(user=self.main_user,
+                                              author=self.author
+                                              ).exists()
+                        )
 
-        #  Отписываемся от автора и проверяем отсутствие поста
-        #  автора на странице /follow/
+    def test_unsubscribe(self):
+        '''Проверка работоспособности функции "отписки от автора"'''
+        Follow.objects.create(user=self.main_user, author=self.author)
+
         self.auth_client.get(reverse('posts:profile_unfollow',
-                                     args=(self.author.username,)
-                                     )
+                             args=(self.author.username,))
                              )
+        self.assertFalse(Follow.objects.filter(user=self.main_user,
+                                               author=self.author
+                                               ).exists()
+                         )
+
+    def test_auth_post_exists(self):
+        '''Проверка того, что пост автора отображается на странице фолловера'''
+        #  Создаем подписку на автора
+        Follow.objects.create(user=self.main_user, author=self.author)
+        #  Создаем новый пост автора
+        new_post = Post.objects.create(text='New post',
+                                       author=self.author)
+        #  Получаем контекст со страницы избранных постов
         response = self.auth_client.get(reverse('posts:follow_index'))
         context = response.context['posts']
-        self.assertFalse(context,
-                         'Отписка от автора работает не так как ожидалось.')
+
+        self.assertIn(Post.objects.filter(text=new_post.text)[0], context,
+                                         ('Пост автора отсутствует в ленте '
+                                          'фолловера'
+                                          )
+                      )
+
+    def test_non_auth_post_absence(self):
+        '''Проверка того, что пост автора не отображается на
+        странице юзера, не подписанного на него.'''
+        #  Создаем новый пост автора
+        new_post = Post.objects.create(text='New post',
+                                       author=self.author)
+
+        #  Получаем контекст со страницы избранных постов
+        response = self.auth_random_client.get(reverse('posts:follow_index'))
+        context = response.context['posts']
+
+        self.assertNotIn(Post.objects.filter(text=new_post.text)[0], context,
+                                            ('Пост автора присутствует в ленте'
+                                             ' не фолловера'
+                                             )
+                         )

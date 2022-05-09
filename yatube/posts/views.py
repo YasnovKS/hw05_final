@@ -60,9 +60,9 @@ def profile(request, username):
     page_obj = create_pages(request, posts)
     following = False
     if request.user.is_authenticated:
-        user = get_object_or_404(User, username=request.user.username)
-        author_in = Follow.objects.filter(user=user, author=author)
-        if author_in:
+        user = request.user
+        if Follow.objects.filter(user=user,
+                                 author=author).exists():
             following = True
     context = {
         'posts': posts,
@@ -141,13 +141,8 @@ def add_comment(request, post_id):
 
 @login_required
 def follow_index(request):
-    user = get_object_or_404(User, username=request.user.username)
-    authors = user.follower.all()
-    posts = []
-    for author in authors:
-        authors_posts = author.author.posts.all()
-        for authors_post in authors_posts:
-            posts.append(authors_post)
+    user = request.user
+    posts = Post.objects.filter(author__following__user=user)
     page_obj = create_pages(request, posts)
     template = 'posts/follow.html'
     context = {
@@ -159,19 +154,18 @@ def follow_index(request):
 
 @login_required
 def profile_follow(request, username):
-    user = get_object_or_404(User, username=request.user.username)
+    user = request.user
     author = get_object_or_404(User, username=username)
     if user != author:
-        if not Follow.objects.filter(user=user, author=author):
-            Follow.objects.create(user=user,
-                                  author=author
-                                  )
+        Follow.objects.get_or_create(user=user,
+                                     author=author
+                                     )
     return redirect('posts:profile', username)
 
 
 @login_required
 def profile_unfollow(request, username):
-    user = get_object_or_404(User, username=request.user.username)
+    user = request.user
     author = get_object_or_404(User, username=username)
     Follow.objects.filter(user=user,
                           author=author).delete()

@@ -26,11 +26,6 @@ class TestPostsUrls(TestCase):
         cls.user = User.objects.create(username='Kirill')
         cls.other_user = User.objects.create(username='Other')
 
-        cls.non_auth_client = Client()
-
-        cls.auth_client = Client()
-        cls.auth_client.force_login(cls.user)
-
         Group.objects.create(
             title='Тестовое название',
             description='Тестовое описание',
@@ -51,6 +46,14 @@ class TestPostsUrls(TestCase):
         super().tearDownClass()
         cache.delete('index_page')
 
+    def setUp(self) -> None:
+        super().setUp()
+
+        self.non_auth_client = Client()
+
+        self.auth_client = Client()
+        self.auth_client.force_login(self.user)
+
     def test_page_status_unauthorized(self):
         '''
         Тестирование URL, доступных неавторизованному клиенту.
@@ -60,9 +63,9 @@ class TestPostsUrls(TestCase):
             'group/<slug>/': reverse('posts:group_list',
                                      args=[Group.objects.all().first().slug]
                                      ),
-            'profile/<str:username>/': reverse('posts:profile',
-                                               args=[self.user.username]
-                                               ),
+            'profile/<username>/': reverse('posts:profile',
+                                           args=[self.user.username]
+                                           ),
             'posts/<post_id>/': reverse('posts:post_detail',
                                         args=[self.post.id]
                                         )
@@ -182,3 +185,54 @@ class TestPostsUrls(TestCase):
         self.assertEqual(response.status_code,
                          HTTPStatus.NOT_FOUND)
         self.assertTemplateUsed(response, 'core/404.html')
+
+    def test_follow_urls(self):
+        '''Тестирование urls, добавленных для реализации функции
+        подписок на авторов.'''
+
+        #  Проверка переадресации неавторизованного пользователя
+        #  при попытке подписаться на автора, отписаться от него,
+        #  оставить коммент на странице поста или загрузить страницу
+        #  постов избранных авторов.
+        follow_urls = {
+            'follow_author': f'/profile/{self.user.username}/follow/',
+            'unfollow_author': f'/profile/{self.user.username}/unfollow/',
+            'create_comment': f'/posts/{self.post.id}/comment/',
+            'follow_index': '/follow/'
+        }
+        for name, url in follow_urls.items():
+            with self.subTest(name=name):
+                target_url = (f'{reverse("users:login")}?next='
+                              f'{url}'
+                              )
+                response = self.non_auth_client.get(url)
+                self.assertRedirects(response,
+                                     target_url,
+                                     status_code=HTTPStatus.FOUND,
+                                     target_status_code=HTTPStatus.OK)
+
+        #  Проверим, что при запросе вышеуказанных страниц авторизованным
+        #  пользователем, редирект происходит на ожидаемые страницы...
+        success_urls = {
+            f'/profile/{self.user.username}/follow/':
+            reverse('posts:profile',
+                    args=(self.user.username,)),
+            f'/profile/{self.user.username}/unfollow/':
+            reverse('posts:profile',
+                    args=(self.user.username,)),
+            f'/posts/{self.post.id}/comment/': reverse('posts:post_detail',
+                                                       args=(self.post.id,))
+        }
+        for url, target in success_urls.items():
+            with self.subTest(url=url):
+                target_url = f'{target}?next{url}'
+                response = self.auth_client.get(url)
+                self.assertRedirects(response,
+                                     target_url,
+                                     status_code=HTTPStatus.FOUND,
+                                     target_status_code=HTTPStatus.OK)
+
+        #  ...а код страницы /follow/ при ответе на запрос от авторизованного
+        #  пользователя равен 200
+        response = self.auth_client.get('/follow/')
+        self.assertEqual(response.status_code, HTTPStatus.OK)
