@@ -25,7 +25,7 @@ def index(request):
     posts = cache.get('index_page')
     if not posts:
         posts = Post.objects.all()
-        cache.set('index_page', posts, 20)
+        cache.add('index_page', posts, 20)
     page_obj = create_pages(request, posts)
     template = 'posts/index.html'
     context = {
