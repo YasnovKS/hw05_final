@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% load thumbnail %}
+  {% block title %}
+    Группа {{ group.title }} проекта Yatube
+  {% endblock %}
+  {% block header %}
+    {{ group.title }}
+  {% endblock %}
+  {% block description%}
+    {{ group.description }}
+  {% endblock %}
+  {% block content %}
+    {% for post in page_obj %}
+      {% if post.group.title == group.title %}
+        <ui>
+          <li>
+            Автор: {{ post.author.get_full_name}}  
+          <a href="{% url 'posts:profile' post.author.get_username %}">
+            Все посты пользователя
+          </a>
+          </li>
+          <li>
+            Дата публикации: {{ post.pub_date|date:"d E Y" }}
+          </li>
+        </ui>
+        {% thumbnail post.image "960x339" crop="center" upscale=True as im %}
+          <img class="card-img my-2" src="{{ im.url }}">
+        {% endthumbnail %}
+        <p>
+          {{ post.text }}
+        </p>
+        {% if not forloop.last %}
+          <hr>
+        {% endif %}
+      {% endif %}
+    {% endfor %}
+  {% endblock %}
