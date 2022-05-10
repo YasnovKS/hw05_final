@@ -155,7 +155,7 @@ class TestForm(TestCase):
 
     def test_auth_user_comment(self):
         '''Тестирование возможнсти добавления комментария к посту
-        авторизованным и неавторизованным юзерами.'''
+        авторизованным юзером.'''
 
         post = Post.objects.all().first()
 
@@ -164,23 +164,38 @@ class TestForm(TestCase):
             'author': self.user,
             'post': post.id
         }
-        #  Так как до текущего момента комментарии не создавались,
-        #  индикатором корректной работы пост-запроса может быть
-        #  пустой (после неавторизованного юзера) или не пустой
-        #  (после авторизованного) QuerySet, который далее будет
-        #  проверяться assertTrue и assertFalse.
 
-        #  Сначала проверяем отсутствие комментов в БД после отправки
-        #  пост-запроса от неавторизованного юзера:
+        #  Проверяем наличие поста в БД после отправки
+        #  пост-запроса от авторизованного юзера:
+        self.client.post(reverse('posts:add_comment',
+                                 args=(post.id,)),
+                         form,
+                         follow=True
+                         )
+        self.assertTrue(Comment.objects.all())
 
+    def test_for_non_auth_user(self):
+        '''Тестирование взаимодействия с функционалом комментирования
+        постов неавторизованным юзером'''
+
+        post = Post.objects.all().first()
+
+        form = {
+            'text': 'Test comment',
+            'author': self.user,
+            'post': post.id
+        }
+        #  Выполняем пост-запрос для создания комментария к посту:
         response = self.unauthorized_client.post(reverse('posts:add_comment',
                                                          args=(post.id,)),
                                                  form,
                                                  follow=True
                                                  )
-        self.assertFalse(Comment.objects.all())
+        #  Проверяем отсутствие комментов в БД после отправки
+        #  пост-запроса от неавторизованного юзера:
+        self.assertFalse(Comment.objects.filter(text=form['text']))
 
-        #  Проеряем редирект неавторизованного юзера при попытке
+        #  Проверяем редирект неавторизованного юзера при попытке
         #  создать комментарий:
         target_url = (f'{reverse("users:login")}?next='
                       f'{reverse("posts:add_comment", args=(post.id,))}'
@@ -189,12 +204,3 @@ class TestForm(TestCase):
                              target_url,
                              status_code=HTTPStatus.FOUND,
                              target_status_code=HTTPStatus.OK)
-
-        #  Затем проверяем наличие поста в БД после отправки
-        #  пост-запроса от авторизованного юзера:
-        self.client.post(reverse('posts:add_comment',
-                                 args=(post.id,)),
-                         form,
-                         follow=True
-                         )
-        self.assertTrue(Comment.objects.all())

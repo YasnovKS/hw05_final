@@ -301,10 +301,11 @@ class TestFollowing(TestCase):
         super().setUpClass()
         cls.main_user = User.objects.create(username='Kirill')
         cls.author = User.objects.create(username='Author')
-        cls.random_user = User.objects.create(username='Any user')
+        cls.random_user = User.objects.create(username='Random user')
+        cls.any_user = User.objects.create(username='Any user')
 
-        cls.post = Post.objects.create(text='Test text',
-                                       author=cls.author)
+        cls.post = Post.objects.create(text='Test text', author=cls.author)
+        Follow.objects.create(user=cls.any_user, author=cls.author)
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -324,12 +325,21 @@ class TestFollowing(TestCase):
         self.auth_random_client.force_login(self.random_user)
 
     def test_auth_user_follow(self):
-        '''Подписываемся на автора и проверяем наличие поста
-        автора на странице /follow/'''
+        '''Проверяем возможность подписаться на автора'''
+        #  Определяем количество подписок на автора:
+        start_follows_count = Follow.objects.filter(author=self.author).count()
+        #  Подписываемся на автора:
         self.auth_client.get(reverse('posts:profile_follow',
                                      args=(self.author.username,)
                                      )
                              )
+        #  Считаем количество записей в базе после подписки:
+        next_follows_count = Follow.objects.filter(author=self.author).count()
+        #  Проверяем, что количество записей выросло на 1:
+        self.assertEqual(next_follows_count, start_follows_count + 1,
+                         'Подписка на автора работает не так как ожидалось.')
+        #  Проверяем, что в БД существует подписка с указанными
+        #  при создании параметрами
         self.assertTrue(Follow.objects.filter(user=self.main_user,
                                               author=self.author
                                               ).exists()
@@ -337,11 +347,27 @@ class TestFollowing(TestCase):
 
     def test_unsubscribe(self):
         '''Проверка работоспособности функции "отписки от автора"'''
+        #  Определяем общее количество подписок на автора:
+        start_follows_count = Follow.objects.filter(author=self.author).count()
+
+        #  Создаем подписку на автора от main_user:
         Follow.objects.create(user=self.main_user, author=self.author)
 
+        #  Считаем количество записей в базе после подписки:
+        next_follows_count = Follow.objects.filter(author=self.author).count()
+
+        #  Проверяем, что количество записей выросло на 1:
+        self.assertEqual(next_follows_count, start_follows_count + 1)
+
+        #  Выполняем запрос на отписку от автора
         self.auth_client.get(reverse('posts:profile_unfollow',
                              args=(self.author.username,))
                              )
+        #  Проверяем уменьшение количества подписок на 1:
+        final_follows_count = Follow.objects.filter(author=self.author).count()
+        self.assertEqual(final_follows_count, start_follows_count)
+
+        #  Проверяем, что подписка с указанными параметрами отсутствует в БД
         self.assertFalse(Follow.objects.filter(user=self.main_user,
                                                author=self.author
                                                ).exists()
@@ -377,6 +403,6 @@ class TestFollowing(TestCase):
 
         self.assertNotIn(Post.objects.filter(text=new_post.text)[0], context,
                                             ('Пост автора присутствует в ленте'
-                                             ' не фолловера'
+                                             ' не фолловера.'
                                              )
                          )
