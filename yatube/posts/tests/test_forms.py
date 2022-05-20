@@ -96,7 +96,8 @@ class TestForm(TestCase):
                                  'соответствует ожидаемому.'
                                  )
         self.assertTrue(Post.objects.filter(text=form['text'],
-                                            image=image_db_name).exists()
+                                            image=image_db_name,
+                                            group=form['group']).exists()
                         )
 
     def test_not_auth_create_post(self):

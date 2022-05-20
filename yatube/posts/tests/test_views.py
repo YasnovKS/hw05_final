@@ -266,7 +266,7 @@ class TestCache(TestCase):
     def test_cache_working(self):
 
         response = self.client.get(reverse('posts:index'))
-        context = response.context['posts']
+        context = response.content
         #  Проверяем, что главная страница отдает нам посты:
         self.assertTrue(context)
 
@@ -280,7 +280,7 @@ class TestCache(TestCase):
         #  ожидая при этом QuerySet из кэша:
         Post.objects.all().delete()
         response = self.client.get(reverse('posts:index'))
-        context = response.context['posts']
+        context = response.content
 
         self.assertTrue(context)
 
@@ -288,7 +288,7 @@ class TestCache(TestCase):
         #  QuerySet):
         cache.delete('index_page')
         response = self.client.get(reverse('posts:index'))
-        context = response.context['posts']
+        context = response.content
 
         self.assertFalse(context)
 

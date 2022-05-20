@@ -24,7 +24,7 @@ def index(request):
     '''
     posts = cache.get('index_page')
     if not posts:
-        posts = Post.objects.all()
+        posts = Post.objects.all().select_related('group', 'author')
         cache.add('index_page', posts, 20)
     page_obj = create_pages(request, posts)
     template = 'posts/index.html'
@@ -43,7 +43,7 @@ def group_posts(request, slug):
     '''
     template = 'posts/group_list.html'
     group = get_object_or_404(Group, slug=slug)
-    posts = group.posts.all()
+    posts = group.posts.all().select_related('author')
     page_obj = create_pages(request, posts)
     context = {
         'group': group,
@@ -55,7 +55,7 @@ def group_posts(request, slug):
 
 def profile(request, username):
     author = get_object_or_404(User, username=username)
-    posts = author.posts.all()
+    posts = author.posts.all().select_related('group', 'author')
     posts_count = posts.count()
     page_obj = create_pages(request, posts)
     following = False
@@ -142,7 +142,8 @@ def add_comment(request, post_id):
 @login_required
 def follow_index(request):
     user = request.user
-    posts = Post.objects.filter(author__following__user=user)
+    posts = (Post.objects.filter(author__following__user=user)
+             .select_related('group', 'author'))
     page_obj = create_pages(request, posts)
     template = 'posts/follow.html'
     context = {

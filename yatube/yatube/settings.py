@@ -30,6 +30,8 @@ ALLOWED_HOSTS = [
     '127.0.0.1',
     '[::1]',
     'testserver',
+    'www.yasnovks.pythonanywhere.com',
+    'yasnovks.pythonanywhere.com',
 ]
 
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
@@ -163,3 +165,5 @@ CACHES = {
 INTERNAL_IPS = [
     '127.0.0.1',
 ]
+
+DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
