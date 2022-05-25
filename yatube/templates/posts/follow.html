@@ -7,7 +7,7 @@
     Записи авторов, на которых Вы подписаны
   {% endblock %}
   {% block content %}
-    {% include 'includes/switcher.html' %}
+    {% include 'includes/switcher.html' with follow=True %}
     {% for post in page_obj %}
       <ui>
         <li>

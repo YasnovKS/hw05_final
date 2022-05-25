@@ -60,7 +60,7 @@ class Comment(models.Model):
                                related_name='comments',
                                verbose_name='Автор'
                                )
-    text = models.TextField(verbose_name='Текст коммнтария',
+    text = models.TextField(verbose_name='Текст комметария',
                             help_text='Оставьте комментарий'
                             )
     created = models.DateTimeField(auto_now_add=True,
@@ -90,7 +90,8 @@ class Follow(models.Model):
         verbose_name = 'Подписка'
         verbose_name_plural = 'Подписки'
         constraints = [models.UniqueConstraint(fields=['user', 'author'],
-                                               name='unique_follow')]
+                                               name='unique_follow'),
+                       ]
 
     def __str__(self):
         return f'Подписка на {self.author}'
